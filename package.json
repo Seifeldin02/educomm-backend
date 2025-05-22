@@ -1,0 +1,33 @@
+{
+  "name": "educomm-backend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "debug": "cross-env NODE_OPTIONS=\"--inspect\" next dev",
+    "trace": "cross-env NODE_OPTIONS=\"--trace-warnings\" next dev",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "educomm-backend": "file:",
+    "firebase-admin": "latest",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "ws": "latest"
+  },
+  "devDependencies": {
+    "@types/estree": "^1.0.7",
+    "@types/json-schema": "^7.0.15",
+    "@types/node": "^22.15.21",
+    "@types/react": "^19.1.5",
+    "@types/react-dom": "^19.1.5",
+    "@types/ws": "^8.18.1",
+    "cross-env": "^7.0.3",
+    "eslint": "latest",
+    "eslint-config-next": "latest",
+    "typescript": "latest"
+  }
+}
