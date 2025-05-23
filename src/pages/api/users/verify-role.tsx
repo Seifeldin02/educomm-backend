@@ -28,8 +28,32 @@ export default async function handler(
     const userRole = userDoc.data()?.role;
     const { requiredRole } = req.body;
 
-    if (requiredRole && userRole !== requiredRole) {
-      return res.status(403).json({ message: "Invalid role." });
+    // If no role is required (public route), just return the user's role
+    if (!requiredRole) {
+      return res.status(200).json({ message: "Role retrieved", role: userRole });
+    }
+
+    // Validate that user has a role
+    if (!userRole) {
+      return res.status(400).json({ 
+        message: "User role not set",
+        details: {
+          userRole: "not set",
+          requiredRole
+        }
+      });
+    }
+
+    // Case-insensitive comparison of roles
+    if (userRole.toLowerCase() !== requiredRole.toLowerCase()) {
+      return res.status(403).json({ 
+        message: "Invalid role for this route",
+        details: {
+          userRole,
+          requiredRole,
+          reason: "Role mismatch"
+        }
+      });
     }
 
     return res.status(200).json({ message: "Role verified", role: userRole });

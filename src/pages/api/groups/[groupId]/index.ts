@@ -3,7 +3,7 @@ import { adminDB, adminAuth } from "@/lib/firebaseAdmin";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': 'http://localhost:5173',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS, PATCH',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Allow-Credentials': 'true',
 };
@@ -12,18 +12,23 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  // Set CORS headers for all responses
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    // Set CORS headers
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+      res.setHeader(key, value);
+    });
+    return res.status(200).end();
+  }
+
+  // Set CORS headers for all other responses
   Object.entries(corsHeaders).forEach(([key, value]) => {
     res.setHeader(key, value);
   });
 
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
-
   if (req.method === "GET") {
     const token = req.headers.authorization?.split('Bearer ')[1];
-    if (!token) return res.status(401).json({ message: 'Unauthorized' });
+    if (!token) return res.status(401).json({ error: 'Unauthorized' });
 
     try {
       const decodedToken = await adminAuth.verifyIdToken(token);
@@ -72,7 +77,7 @@ export default async function handler(
         imageUrl: groupData?.imageUrl || null,
         createdAt: groupData?.createdAt,
         createdBy: groupData?.createdBy,
-        members: groupData?.members.map((member: any) => {
+        members: await Promise.all(groupData?.members.map(async (member: any) => {
           // Try to get user data from our database first
           const dbUserData = usersMap.get(member.uid) || usersMap.get(member.email?.toLowerCase());
           const username = member.email?.split('@')[0] || 'Unknown User';
@@ -84,9 +89,10 @@ export default async function handler(
             uid: member.uid,
             email: member.email || '',
             displayName: displayName,
-            photoURL: member.photoURL || null
+            photoURL: member.photoURL || null,
+            role: dbUserData?.role || null // Include role information
           };
-        }) || []
+        })) || []
       };
 
       return res.status(200).json({
