@@ -11,6 +11,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@types/cors": "^2.8.18",
+    "cors": "^2.8.5",
     "educomm-backend": "file:",
     "firebase-admin": "latest",
     "next": "latest",

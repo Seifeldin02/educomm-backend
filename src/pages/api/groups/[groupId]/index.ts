@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { adminDB, adminAuth } from "@/lib/firebaseAdmin";
+import { adminDB, adminAuth, admin } from "@/lib/firebaseAdmin";
 
+// CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': 'http://localhost:5173',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
@@ -12,19 +13,16 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    // Set CORS headers
-    Object.entries(corsHeaders).forEach(([key, value]) => {
-      res.setHeader(key, value);
-    });
-    return res.status(200).end();
-  }
-
-  // Set CORS headers for all other responses
+  // Set CORS headers for all responses
   Object.entries(corsHeaders).forEach(([key, value]) => {
     res.setHeader(key, value);
   });
+
+  // Handle preflight request
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
 
   if (req.method === "GET") {
     const token = req.headers.authorization?.split('Bearer ')[1];
@@ -173,19 +171,21 @@ export default async function handler(
         return res.status(403).json({ error: 'Only the group creator can delete the group' });
       }
 
-      // Delete the group
+      // Delete group messages from Firebase Realtime Database
+      await admin.database().ref(`groupMessages/${groupId}`).remove();
+
+      // Delete the group from Firestore
       await adminDB.collection('groups').doc(groupId).delete();
 
       return res.status(200).json({
         success: true,
-        message: 'Group deleted successfully'
+        message: 'Group and all messages deleted successfully'
       });
     } catch (error) {
       console.error('Error deleting group:', error);
       return res.status(500).json({ error: 'Failed to delete group' });
     }
   } else {
-    res.setHeader('Allow', ['GET', 'PUT', 'DELETE', 'OPTIONS']);
     return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 } 

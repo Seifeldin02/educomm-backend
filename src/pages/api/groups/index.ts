@@ -1,9 +1,10 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { adminDB, adminAuth } from "@/lib/firebaseAdmin";
 
+// CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': 'http://localhost:5173',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS, PATCH',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Allow-Credentials': 'true',
 };
@@ -17,8 +18,10 @@ export default async function handler(
     res.setHeader(key, value);
   });
 
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
+  // Handle preflight request
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
   }
 
   if (req.method === "GET") {
@@ -70,11 +73,8 @@ export default async function handler(
         .map(group => ({
           ...group,
           members: group.members.map((member: any) => {
-            // Try to get user data from our database first
             const dbUserData = usersMap.get(member.uid) || usersMap.get(member.email?.toLowerCase());
             const username = member.email?.split('@')[0] || 'Unknown User';
-            
-            // Use database fullName if available, otherwise use stored displayName or username
             const displayName = dbUserData?.fullName || member.displayName || username;
             
             return {
@@ -131,15 +131,7 @@ export default async function handler(
         }]
       };
 
-      try {
-        await groupRef.set(groupData);
-        console.log('Group created successfully:', groupData);
-      } catch (error) {
-        console.error('Error saving group to database:', error);
-        throw error;
-      }
-
-      // Return complete group data
+      await groupRef.set(groupData);
       return res.status(200).json({
         success: true,
         group: groupData
@@ -152,7 +144,6 @@ export default async function handler(
       });
     }
   } else {
-    res.setHeader('Allow', ['GET', 'POST', 'OPTIONS']);
     return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 } 

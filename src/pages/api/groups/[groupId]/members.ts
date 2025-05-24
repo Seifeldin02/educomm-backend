@@ -1,9 +1,10 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { adminDB, adminAuth } from "@/lib/firebaseAdmin";
 
+// CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': 'http://localhost:5173',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Allow-Credentials': 'true',
 };
@@ -12,22 +13,18 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    // Set CORS headers
-    Object.entries(corsHeaders).forEach(([key, value]) => {
-      res.setHeader(key, value);
-    });
-    return res.status(200).end();
-  }
-
-  // Set CORS headers for all other responses
+  // Set CORS headers for all responses
   Object.entries(corsHeaders).forEach(([key, value]) => {
     res.setHeader(key, value);
   });
 
+  // Handle preflight request
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
   if (req.method !== "POST") {
-    res.setHeader('Allow', ['POST', 'OPTIONS']);
     return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 
