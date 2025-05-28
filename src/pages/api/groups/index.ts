@@ -13,23 +13,24 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  // Set CORS headers for all responses
+  // Always set CORS headers first, before any other operations
   Object.entries(corsHeaders).forEach(([key, value]) => {
     res.setHeader(key, value);
   });
 
   // Handle preflight request
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+    return res.status(200).end();
   }
 
-  if (req.method === "GET") {
-    // Handle GET request
-    const token = req.headers.authorization?.split('Bearer ')[1];
-    if (!token) return res.status(401).json({ message: 'Unauthorized' });
+  // Verify authorization for all non-OPTIONS requests
+  const token = req.headers.authorization?.split('Bearer ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
 
-    try {
+  try {
+    if (req.method === "GET") {
       const decodedToken = await adminAuth.verifyIdToken(token);
       const uid = decodedToken.uid;
 
@@ -90,24 +91,14 @@ export default async function handler(
         success: true,
         groups
       });
-    } catch (error) {
-      console.error('Error fetching groups:', error);
-      return res.status(500).json({ error: 'Failed to fetch groups' });
-    }
-  } else if (req.method === "POST") {
-    // Handle POST request
-    const token = req.headers.authorization?.split("Bearer ")[1];
-    if (!token) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
+    } else if (req.method === "POST") {
+      const decodedToken = await adminAuth.verifyIdToken(token);
+      const uid = decodedToken.uid;
       const { name, description, imageUrl } = req.body;
 
       if (!name) {
         return res.status(400).json({ error: "Name is required" });
       }
-
-      const decodedToken = await adminAuth.verifyIdToken(token);
-      const uid = decodedToken.uid;
 
       // Get user info for the creator
       const creatorUser = await adminAuth.getUser(uid);
@@ -136,14 +127,14 @@ export default async function handler(
         success: true,
         group: groupData
       });
-    } catch (error) {
-      console.error("Error creating group:", error);
-      return res.status(500).json({ 
-        error: "Failed to create group",
-        details: error instanceof Error ? error.message : 'Unknown error'
-      });
+    } else {
+      return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
     }
-  } else {
-    return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
+  } catch (error) {
+    console.error("Error:", error);
+    return res.status(500).json({ 
+      error: error instanceof Error ? error.message : 'Unknown error',
+      details: error
+    });
   }
 } 
