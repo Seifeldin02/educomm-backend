@@ -1,0 +1,64 @@
+{
+  "rules": {
+    "groupMessages": {
+      "$groupId": {
+        ".read": "auth !== null && root.child('groups').child($groupId).child('members').child(auth.uid).exists()",
+        ".write": "auth !== null && root.child('groups').child($groupId).child('members').child(auth.uid).exists()",
+        "$messageId": {
+          ".validate": "newData.hasChildren(['text', 'timestamp', 'senderId', 'senderName'])",
+          "text": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 1000"
+          },
+          "timestamp": {
+            ".validate": "newData.isNumber()"
+          },
+          "senderId": {
+            ".validate": "newData.val() === auth.uid"
+          },
+          "senderName": {
+            ".validate": "newData.isString()"
+          }
+        }
+      }
+    },
+    "directMessages": {
+      "$chatId": {
+        ".read": "auth !== null && root.child('chats').child($chatId).child('participants').child(auth.uid).exists()",
+        ".write": "auth !== null && root.child('chats').child($chatId).child('participants').child(auth.uid).exists()",
+        "$messageId": {
+          ".validate": "newData.hasChildren(['text', 'timestamp', 'senderId', 'senderName'])",
+          "text": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 1000"
+          },
+          "timestamp": {
+            ".validate": "newData.isNumber()"
+          },
+          "senderId": {
+            ".validate": "newData.val() === auth.uid"
+          },
+          "senderName": {
+            ".validate": "newData.isString()"
+          }
+        }
+      }
+    },
+    "chats": {
+      "$chatId": {
+        ".read": "auth !== null && data.child('participants').child(auth.uid).exists()",
+        ".write": "auth !== null && (data.child('participants').child(auth.uid).exists() || !data.exists())",
+        "participants": {
+          ".validate": "newData.hasChildren() && newData.child(auth.uid).exists() && newData.val().length === 2"
+        },
+        "lastMessage": {
+          ".validate": "newData.hasChildren(['text', 'timestamp', 'senderId'])"
+        }
+      }
+    },
+    "userChats": {
+      "$uid": {
+        ".read": "auth !== null && auth.uid === $uid",
+        ".write": "auth !== null && auth.uid === $uid"
+      }
+    }
+  }
+} 
