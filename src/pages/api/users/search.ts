@@ -13,6 +13,7 @@ interface UserSearchResult {
   email: string;
   displayName: string;
   username: string;
+  photoURL?: string | null;
 }
 
 export default async function handler(
@@ -92,7 +93,7 @@ export default async function handler(
             uid: doc.id,
             email: data.email,
             displayName: data.fullName || data.displayName || data.email.split('@')[0],
-            username: data.username || ''
+            username: data.username || '',
           });
         }
       });
@@ -102,13 +103,39 @@ export default async function handler(
     processResults(usernameResults);
     processResults(fullNameResults);
 
-    // Sort results by relevance (exact matches first)
-    users.sort((a, b) => {
-      const aExact = 
+    // Augment users with photoURL
+    const usersWithPhotoURL: UserSearchResult[] = await Promise.all(
+      users.map(async (userResult) => {
+        let photoURL: string | null = null;
+        try {
+          const authUserRecord = await adminAuth.getUser(userResult.uid);
+          photoURL = authUserRecord.photoURL || null;
+        } catch (authError) {
+          console.warn(`Failed to get auth record for user ${userResult.uid} during search, trying Firestore user doc:`, authError);
+          try {
+            const userDoc = await adminDB.collection('users').doc(userResult.uid).get();
+            if (userDoc.exists) {
+              const firestoreData = userDoc.data();
+              photoURL = firestoreData?.photoURL || null;
+            }
+          } catch (firestoreError) {
+            console.warn(`Failed to get Firestore user doc for ${userResult.uid} during search fallback:`, firestoreError);
+          }
+        }
+        return {
+          ...userResult,
+          photoURL: photoURL,
+        };
+      })
+    );
+
+    // Sort results by relevance (exact matches first) on the augmented list
+    usersWithPhotoURL.sort((a, b) => {
+      const aExact =
         a.email.toLowerCase().startsWith(searchTerm) ||
         a.username.toLowerCase().startsWith(searchTerm) ||
         a.displayName.toLowerCase().startsWith(searchTerm);
-      const bExact = 
+      const bExact =
         b.email.toLowerCase().startsWith(searchTerm) ||
         b.username.toLowerCase().startsWith(searchTerm) ||
         b.displayName.toLowerCase().startsWith(searchTerm);
@@ -119,7 +146,7 @@ export default async function handler(
     });
 
     return res.status(200).json({
-      users: users.slice(0, 10)
+      users: usersWithPhotoURL.slice(0, 10)
     });
   } catch (error) {
     console.error('Error searching users:', error);

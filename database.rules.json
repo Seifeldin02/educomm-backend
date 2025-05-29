@@ -1,64 +1,90 @@
 {
   "rules": {
+    "users": { // Optional: If you store public user data in RTDB
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && $uid === auth.uid" // Users can only write to their own profile
+      }
+    },
+    "groups": { // Assumed path for group metadata if used by groupMessages rules
+      "$groupId": {
+        // Only allow members to read group metadata from RTDB
+        ".read": "auth != null && data.child('members').child(auth.uid).exists()",
+        // Only creator can write to group metadata in RTDB (e.g. name, description)
+        // Adding/removing members might need more specific rules or be handled by backend/functions.
+        ".write": "auth != null && data.child('createdBy').val() === auth.uid",
+        "members": {
+          "$uid": {
+            // Can be true, or an object with role, joinDate etc.
+            // ".validate": "newData.isBoolean() || newData.hasChildren(['displayName', 'joinDate'])"
+          }
+        }
+      }
+    },
     "groupMessages": {
       "$groupId": {
-        ".read": "auth !== null && root.child('groups').child($groupId).child('members').child(auth.uid).exists()",
-        ".write": "auth !== null && root.child('groups').child($groupId).child('members').child(auth.uid).exists()",
+        // User must be authenticated and a member of the group (assumes /groups/$groupId/members/$uid structure in RTDB)
+        ".read": "auth != null && root.child('groups').child($groupId).child('members').child(auth.uid).exists()",
+        ".indexOn": ["timestamp"],
+        // Group creator can delete ALL messages for a group by writing null to this path. Use with caution.
+        // For sending individual messages, the $messageId rule is primary.
+        // ".write": "auth != null && root.child('groups').child($groupId).child('createdBy').val() === auth.uid", // This allows creator to wipe all messages. Commenting out for now unless specifically needed.
         "$messageId": {
-          ".validate": "newData.hasChildren(['text', 'timestamp', 'senderId', 'senderName'])",
-          "text": {
-            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 1000"
-          },
-          "timestamp": {
-            ".validate": "newData.isNumber()"
-          },
-          "senderId": {
-            ".validate": "newData.val() === auth.uid"
-          },
-          "senderName": {
-            ".validate": "newData.isString()"
-          }
+          // Write: If new message, senderId must be auth.uid. User must be a member.
+          // Delete (newData does not exist): Only group creator can delete. User must be a member.
+          ".write": "auth != null && root.child('groups').child($groupId).child('members').child(auth.uid).exists() && ( (newData.exists() && newData.child('senderId').val() === auth.uid) || (!newData.exists() && root.child('groups').child($groupId).child('createdBy').val() === auth.uid) )",
+          ".validate": "!newData.exists() || (newData.hasChildren(['text', 'senderId', 'senderName', 'timestamp']) && newData.child('text').isString() && newData.child('text').val().length > 0 && newData.child('text').val().length < 1024 && newData.child('senderId').isString() && newData.child('senderName').isString() && newData.child('timestamp').isNumber())"
         }
       }
     },
-    "directMessages": {
+    "chats": { // For DM chat metadata (participants, last message etc.)
       "$chatId": {
-        ".read": "auth !== null && root.child('chats').child($chatId).child('participants').child(auth.uid).exists()",
-        ".write": "auth !== null && root.child('chats').child($chatId).child('participants').child(auth.uid).exists()",
-        "$messageId": {
-          ".validate": "newData.hasChildren(['text', 'timestamp', 'senderId', 'senderName'])",
-          "text": {
-            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 1000"
-          },
-          "timestamp": {
-            ".validate": "newData.isNumber()"
-          },
-          "senderId": {
-            ".validate": "newData.val() === auth.uid"
-          },
-          "senderName": {
-            ".validate": "newData.isString()"
-          }
-        }
-      }
-    },
-    "chats": {
-      "$chatId": {
-        ".read": "auth !== null && data.child('participants').child(auth.uid).exists()",
-        ".write": "auth !== null && (data.child('participants').child(auth.uid).exists() || !data.exists())",
+        // Read if user is a participant
+        ".read": "auth != null && data.child('participants').child(auth.uid).exists()",
+        // Write:
+        //  - If creating a new chat (data doesn't exist yet, newData does): auth.uid must be in newData's participants.
+        //  - If updating an existing chat (e.g. lastMessage): auth.uid must be an existing participant.
+        ".write": "auth != null && ( (newData.exists() && !data.exists() && newData.child('participants').child(auth.uid).exists()) || (data.exists() && data.child('participants').child(auth.uid).exists()) )",
+        ".validate": "newData.hasChildren(['participants']) && newData.child('participants').hasChildren() && newData.child('participants').child(auth.uid).hasChildren(['displayName', 'email'])", // At least current user details
         "participants": {
-          ".validate": "newData.hasChildren() && newData.child(auth.uid).exists() && newData.val().length === 2"
+          "$uid": {
+            // Validate structure of participant data
+            ".validate": "newData.hasChildren(['displayName', 'email'])" // photoURL is optional
+          }
         },
-        "lastMessage": {
-          ".validate": "newData.hasChildren(['text', 'timestamp', 'senderId'])"
+        "lastMessage": { // Optional: for updating last message in a chat
+           ".validate": "!newData.exists() || (newData.hasChildren(['text', 'timestamp', 'senderId']) && newData.child('text').isString() && newData.child('timestamp').isNumber() && newData.child('senderId').isString())"
         }
       }
     },
-    "userChats": {
-      "$uid": {
-        ".read": "auth !== null && auth.uid === $uid",
-        ".write": "auth !== null && auth.uid === $uid"
+    "userChats": { // Links users to their DM chat IDs (e.g., /userChats/myUid/chatId123: true)
+      "$userId": {
+        // Read own list of chats
+        ".read": "auth != null && $userId === auth.uid",
+        "$chatId": {
+          // Write:
+          //  - If $userId is the current user (writing to own list).
+          //  - Or, if current user is a participant in the chat they are adding to $userId's list (for adding the other user during chat creation).
+          //    This requires 'chats/$chatId' to exist and list auth.uid as a participant.
+          ".write": "auth != null && ($userId === auth.uid || (newData.val() === true && root.child('chats').child($chatId).child('participants').child(auth.uid).exists() && root.child('chats').child($chatId).child('participants').child($userId).exists()))",
+          ".validate": "newData.isBoolean()" // Expecting 'true' as the value
+        }
+      }
+    },
+    "directMessages": { // Actual messages for DMs
+      "$chatId": {
+        // Read if user is a participant of the chat this message belongs to
+        ".read": "auth != null && root.child('chats').child($chatId).child('participants').child(auth.uid).exists()",
+        ".indexOn": ["timestamp"],
+        "$messageId": {
+          // Write if user is a participant of the chat AND is the sender of the message.
+          ".write": "auth != null && root.child('chats').child($chatId).child('participants').child(auth.uid).exists() && newData.child('senderId').val() === auth.uid",
+          // Deletion of DMs: For DMs, typically users can't delete messages for others.
+          // If you want to allow deletion of own messages:
+          // ".write": "auth != null && root.child('chats').child($chatId).child('participants').child(auth.uid).exists() && ( (newData.exists() && newData.child('senderId').val() === auth.uid) || (!newData.exists() && data.child('senderId').val() === auth.uid) )",
+          ".validate": "newData.hasChildren(['text', 'senderId', 'senderName', 'timestamp']) && newData.child('text').isString() && newData.child('text').val().length > 0 && newData.child('text').val().length < 2048 && newData.child('senderId').isString() && newData.child('senderName').isString() && newData.child('timestamp').isNumber()"
+        }
       }
     }
   }
-} 
+}
