@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { adminDB, adminAuth, adminRealtimeDB } from "@/lib/firebaseAdmin";
+import { adminAuth, adminRealtimeDB } from "@/lib/firebaseAdmin";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': 'http://localhost:5173',
@@ -36,23 +36,15 @@ export default async function handler(
   try {
     const decodedToken = await adminAuth.verifyIdToken(token);
     const uid = decodedToken.uid;
-    const { groupId, messageId } = req.query;
+    const { messageId } = req.query;
+    const { chatId } = req.body;
 
-    if (!groupId || typeof groupId !== 'string' || !messageId || typeof messageId !== 'string') {
-      return res.status(400).json({ error: 'Invalid group ID or message ID' });
+    if (!messageId || typeof messageId !== 'string' || !chatId || typeof chatId !== 'string') {
+      return res.status(400).json({ error: 'Invalid message ID or chat ID' });
     }
 
-    // Get the group document to verify permissions
-    const groupDoc = await adminDB.collection('groups').doc(groupId).get();
-
-    if (!groupDoc.exists) {
-      return res.status(404).json({ error: 'Group not found' });
-    }
-
-    const groupData = groupDoc.data();
-
-    // Check if user is the creator of the group OR the sender of the message
-    const messageRef = adminRealtimeDB.ref(`groupMessages/${groupId}/${messageId}`);
+    // Get the message to verify the sender
+    const messageRef = adminRealtimeDB.ref(`directMessages/${chatId}/${messageId}`);
     const messageSnapshot = await messageRef.once('value');
     
     if (!messageSnapshot.exists()) {
@@ -60,12 +52,11 @@ export default async function handler(
     }
 
     const messageData = messageSnapshot.val();
-    const isGroupCreator = groupData?.createdBy === uid;
-    const isMessageSender = messageData.senderId === uid;
 
-    if (!isGroupCreator && !isMessageSender) {
+    // Check if user is the sender of the message
+    if (messageData.senderId !== uid) {
       return res.status(403).json({ 
-        error: 'Only the group creator or message sender can delete messages' 
+        error: 'Only the message sender can delete this message' 
       });
     }
 
@@ -77,7 +68,7 @@ export default async function handler(
       message: 'Message deleted successfully'
     });
   } catch (error) {
-    console.error('Error deleting message:', error);
+    console.error('Error deleting direct message:', error);
     return res.status(500).json({ error: 'Failed to delete message' });
   }
 } 

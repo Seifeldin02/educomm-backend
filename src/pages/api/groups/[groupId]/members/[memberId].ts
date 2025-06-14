@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { adminDB, adminAuth, admin } from "@/lib/firebaseAdmin";
+import { adminDB, adminAuth, adminRealtimeDB } from "@/lib/firebaseAdmin";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': 'http://localhost:5173',
@@ -72,7 +72,7 @@ export default async function handler(
 
     // If deleteMessages is true, delete all messages from this user
     if (deleteMessages) {
-      const messagesRef = admin.database().ref(`groupMessages/${groupId}`);
+      const messagesRef = adminRealtimeDB.ref(`groupMessages/${groupId}`);
       const snapshot = await messagesRef.once('value');
       const messages = snapshot.val() || {};
 

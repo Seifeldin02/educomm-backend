@@ -1,4 +1,4 @@
-import { auth } from './firebase-admin';
+import { adminAuth as auth } from './firebaseAdmin';
 import { NextRequest } from 'next/server';
 import { DecodedIdToken } from 'firebase-admin/auth';
 

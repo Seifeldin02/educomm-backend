@@ -1,4 +1,4 @@
-import { db } from './firebase-admin';
+import { adminDB as db } from './firebaseAdmin';
 import { getFirestore } from 'firebase-admin/firestore';
 
 // Helper function to convert Firestore timestamp to ISO string

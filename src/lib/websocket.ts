@@ -1,8 +1,27 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { verifyToken } from './auth.js';
-import { db } from './firebase.js';
-import { AuthenticatedWebSocket, WebSocketMessage, WebSocketRequest } from '../types/websocket.js';
+import { adminRealtimeDB as db } from './firebaseAdmin';
 import { Server as HTTPServer } from 'http';
+
+// Define WebSocket types inline
+interface AuthenticatedWebSocket extends WebSocket {
+  isAuthenticated: boolean;
+  userId?: string;
+}
+
+interface WebSocketMessage {
+  type: string;
+  token?: string;
+  data?: any;
+}
+
+interface WebSocketRequest {
+  socket: {
+    remoteAddress?: string;
+    remotePort?: number;
+  };
+  url?: string;
+}
 
 export function setupWebSocketServer(server: HTTPServer) {
   console.log('Setting up WebSocket server with HTTP server:', {

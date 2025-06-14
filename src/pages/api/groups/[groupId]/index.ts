@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { adminDB, adminAuth, admin } from "@/lib/firebaseAdmin";
+import { adminDB, adminAuth, adminRealtimeDB } from "@/lib/firebaseAdmin";
 
 // CORS headers
 const corsHeaders = {
@@ -172,7 +172,7 @@ export default async function handler(
       }
 
       // Delete group messages from Firebase Realtime Database
-      await admin.database().ref(`groupMessages/${groupId}`).remove();
+      await adminRealtimeDB.ref(`groupMessages/${groupId}`).remove();
 
       // Delete the group from Firestore
       await adminDB.collection('groups').doc(groupId).delete();
