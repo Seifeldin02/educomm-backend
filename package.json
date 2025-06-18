@@ -13,12 +13,16 @@
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.10",
     "@types/cors": "^2.8.18",
+    "@types/formidable": "^3.4.5",
+    "@types/uuid": "^10.0.0",
     "cors": "^2.8.5",
     "educomm-backend": "file:",
     "firebase-admin": "latest",
+    "formidable": "^3.5.4",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
+    "uuid": "^11.1.0",
     "ws": "latest"
   },
   "devDependencies": {

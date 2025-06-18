@@ -1,0 +1,34 @@
+{
+  "rules": {
+    "groupMessages": {
+      "$groupId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        "$messageId": {
+          ".validate": "newData.child('senderId').val() == auth.uid"
+        }
+      }
+    },
+    "directMessages": {
+      "$chatId": {
+        ".read": "auth != null",
+        ".write": "auth != null", 
+        "$messageId": {
+          ".validate": "newData.child('senderId').val() == auth.uid"
+        }
+      }
+    },
+    "userChats": {
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": "auth != null && auth.uid == $userId"
+      }
+    },
+    "chats": {
+      "$chatId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    }
+  }
+} 

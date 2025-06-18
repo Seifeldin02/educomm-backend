@@ -72,6 +72,29 @@ export default async function handler(
     // Delete the message from Firebase Realtime Database
     await messageRef.remove();
 
+    // Fetch group info to get members
+    const groupDocAfterDelete = await adminDB.collection('groups').doc(groupId).get();
+    if (groupDocAfterDelete.exists) {
+      const groupDataAfterDelete = groupDocAfterDelete.data();
+      const members = groupDataAfterDelete?.members || [];
+      // Create notification for each member except sender
+      for (const memberId of members) {
+        if (memberId !== messageData.senderId) {
+          const notification = {
+            type: 'group_message',
+            groupId,
+            groupName: groupDataAfterDelete?.name || '',
+            message: messageData.text,
+            senderId: messageData.senderId,
+            senderName: messageData.senderName,
+            timestamp: Date.now(),
+            read: false,
+          };
+          await adminDB.collection('notifications').doc(memberId).collection('items').add(notification);
+        }
+      }
+    }
+
     return res.status(200).json({
       success: true,
       message: 'Message deleted successfully'

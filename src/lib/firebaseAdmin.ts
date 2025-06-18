@@ -31,16 +31,16 @@ function initializeFirebaseAdmin() {
   } catch (error) {
     // App doesn't exist, create it
     console.log('Creating new Firebase app');
-    const serviceAccountPath = path.join(process.cwd(), "serviceAccountKey.json");
-    const serviceAccount = JSON.parse(
-      fs.readFileSync(serviceAccountPath, "utf8")
-    );
+  const serviceAccountPath = path.join(process.cwd(), "serviceAccountKey.json");
+  const serviceAccount = JSON.parse(
+    fs.readFileSync(serviceAccountPath, "utf8")
+  );
 
     app = admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
+    credential: admin.credential.cert(serviceAccount),
       databaseURL: process.env.FIREBASE_DATABASE_URL || "https://educomm-84fd5-default-rtdb.firebaseio.com/"
-    });
-  }
+  });
+}
 
   // Initialize services only if not already cached globally
   if (!global.firebaseAuth) {
