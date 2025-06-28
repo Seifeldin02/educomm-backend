@@ -68,21 +68,35 @@ export default async function handler(
     const errors = [];
 
     for (const email of members) {
-      if (existingEmails.has(email.toLowerCase())) {
+      // Skip empty emails
+      if (!email || typeof email !== 'string' || email.trim() === '') {
+        continue;
+      }
+      
+      const normalizedEmail = email.toLowerCase().trim();
+      
+      if (existingEmails.has(normalizedEmail)) {
         errors.push(`${email} is already a member`);
         continue;
       }
 
       try {
         // Try to get user by email
-        const userRecord = await adminAuth.getUserByEmail(email);
+        const userRecord = await adminAuth.getUserByEmail(normalizedEmail);
         
         // Get additional user info from Firestore
         const userDoc = await adminDB.collection('users').doc(userRecord.uid).get();
         const userData = userDoc.data();
 
         if (!userData) {
-          errors.push(`User profile not found for email: ${email}`);
+          console.warn(`User profile not found in Firestore for email: ${email}, uid: ${userRecord.uid}`);
+          // Still add the user but with limited info
+          addedMembers.push({
+            uid: userRecord.uid,
+            email: userRecord.email,
+            displayName: userRecord.displayName || email.split('@')[0],
+            photoURL: userRecord.photoURL || null
+          });
           continue;
         }
 
@@ -90,11 +104,16 @@ export default async function handler(
           uid: userRecord.uid,
           email: userRecord.email,
           displayName: userData.fullName || userRecord.displayName || email.split('@')[0],
-          photoURL: userRecord.photoURL || null
+          photoURL: userRecord.photoURL || userData.photoURL || null,
+          role: userData.role || 'Student'
         });
       } catch (error: any) {
         console.error(`Error processing member ${email}:`, error);
-        errors.push(`Could not find user with email: ${email}`);
+        if (error.code === 'auth/user-not-found') {
+          errors.push(`User not found: ${email}`);
+        } else {
+          errors.push(`Error adding ${email}: ${error.message || 'Unknown error'}`);
+        }
       }
     }
 

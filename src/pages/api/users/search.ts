@@ -66,18 +66,25 @@ export default async function handler(
       .where('username', '<=', searchTerm + '\uf8ff')
       .limit(5);
 
-    // Search by fullName
-    const fullNameQuery = adminDB
+    // Search by fullName with original and capitalized casing
+    const capitalizedQuery = (query as string).charAt(0).toUpperCase() + (query as string).slice(1);
+    const fullNameQueryAsIs = adminDB
       .collection('users')
-      .where('fullName', '>=', searchTerm)
-      .where('fullName', '<=', searchTerm + '\uf8ff')
+      .where('fullName', '>=', query as string)
+      .where('fullName', '<=', (query as string) + '\uf8ff')
+      .limit(5);
+    const fullNameQueryCapitalized = adminDB
+      .collection('users')
+      .where('fullName', '>=', capitalizedQuery)
+      .where('fullName', '<=', capitalizedQuery + '\uf8ff')
       .limit(5);
 
     // Run all queries in parallel
-    const [emailResults, usernameResults, fullNameResults] = await Promise.all([
+    const [emailResults, usernameResults, fullNameResults, fullNameCapitalizedResults] = await Promise.all([
       emailQuery.get(),
       usernameQuery.get(),
-      fullNameQuery.get()
+      fullNameQueryAsIs.get(),
+      fullNameQueryCapitalized.get()
     ]);
 
     // Combine and deduplicate results
@@ -102,6 +109,7 @@ export default async function handler(
     processResults(emailResults);
     processResults(usernameResults);
     processResults(fullNameResults);
+    processResults(fullNameCapitalizedResults);
 
     // Augment users with photoURL
     const usersWithPhotoURL: UserSearchResult[] = await Promise.all(

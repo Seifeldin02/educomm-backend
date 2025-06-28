@@ -58,7 +58,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .limit(1)
         .get();
       if (!notifQuery.empty) {
-        // Update existing notification: increment count, update lastMessage/timestamp
+        // Only increment count if notification is unread
         const notifDoc = notifQuery.docs[0];
         const notifData = notifDoc.data();
         await notifDoc.ref.update({
@@ -68,7 +68,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           read: false
         });
       } else {
-        // Create new notification
+        // Create new notification with count 1
         const notification = {
           type: 'group_message',
           groupId,

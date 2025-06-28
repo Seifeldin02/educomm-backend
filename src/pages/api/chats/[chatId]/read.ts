@@ -32,6 +32,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Invalid chat ID' });
     }
     await adminDB.collection('directMessages').doc(chatId).collection('unread').doc(uid).set({ lastRead: Date.now() }, { merge: true });
+    // Delete all unread notifications for this chat for this user
+    const notifQuery = await adminDB.collection('notifications').doc(uid).collection('items')
+      .where('type', '==', 'direct_message')
+      .where('chatId', '==', chatId)
+      .where('read', '==', false)
+      .get();
+    for (const notifDoc of notifQuery.docs) {
+      await notifDoc.ref.delete();
+    }
     return res.status(200).json({ success: true });
   } catch (error) {
     console.error('Error updating lastRead:', error);
