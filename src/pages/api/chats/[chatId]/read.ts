@@ -2,48 +2,59 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { adminDB, adminAuth } from "@/lib/firebaseAdmin";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': 'http://localhost:5173',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Credentials': 'true',
+  "Access-Control-Allow-Origin": "https://educomm-84fd5.web.app",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Credentials": "true",
 };
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   Object.entries(corsHeaders).forEach(([key, value]) => {
     res.setHeader(key, value);
   });
 
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const token = req.headers.authorization?.split('Bearer ')[1];
-  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  const token = req.headers.authorization?.split("Bearer ")[1];
+  if (!token) return res.status(401).json({ error: "Unauthorized" });
 
   try {
     const decodedToken = await adminAuth.verifyIdToken(token);
     const uid = decodedToken.uid;
     const { chatId } = req.query;
-    if (!chatId || typeof chatId !== 'string') {
-      return res.status(400).json({ error: 'Invalid chat ID' });
+    if (!chatId || typeof chatId !== "string") {
+      return res.status(400).json({ error: "Invalid chat ID" });
     }
-    await adminDB.collection('directMessages').doc(chatId).collection('unread').doc(uid).set({ lastRead: Date.now() }, { merge: true });
+    await adminDB
+      .collection("directMessages")
+      .doc(chatId)
+      .collection("unread")
+      .doc(uid)
+      .set({ lastRead: Date.now() }, { merge: true });
     // Delete all unread notifications for this chat for this user
-    const notifQuery = await adminDB.collection('notifications').doc(uid).collection('items')
-      .where('type', '==', 'direct_message')
-      .where('chatId', '==', chatId)
-      .where('read', '==', false)
+    const notifQuery = await adminDB
+      .collection("notifications")
+      .doc(uid)
+      .collection("items")
+      .where("type", "==", "direct_message")
+      .where("chatId", "==", chatId)
+      .where("read", "==", false)
       .get();
     for (const notifDoc of notifQuery.docs) {
       await notifDoc.ref.delete();
     }
     return res.status(200).json({ success: true });
   } catch (error) {
-    console.error('Error updating lastRead:', error);
-    return res.status(500).json({ error: 'Failed to update lastRead' });
+    console.error("Error updating lastRead:", error);
+    return res.status(500).json({ error: "Failed to update lastRead" });
   }
-} 
+}

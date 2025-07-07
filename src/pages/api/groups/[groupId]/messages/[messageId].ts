@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { adminDB, adminAuth, adminRealtimeDB } from "@/lib/firebaseAdmin";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "http://localhost:5173",
+  "Access-Control-Allow-Origin": "https://educomm-84fd5.web.app",
   "Access-Control-Allow-Methods": "DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
   "Access-Control-Allow-Credentials": "true",

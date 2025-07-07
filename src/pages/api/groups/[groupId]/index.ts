@@ -3,10 +3,10 @@ import { adminDB, adminAuth, adminRealtimeDB } from "@/lib/firebaseAdmin";
 
 // CORS headers
 const corsHeaders = {
-  'Access-Control-Allow-Origin': 'http://localhost:5173',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Credentials': 'true',
+  "Access-Control-Allow-Origin": "https://educomm-84fd5.web.app",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Credentials": "true",
 };
 
 export default async function handler(
@@ -19,45 +19,47 @@ export default async function handler(
   });
 
   // Handle preflight request
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     res.status(200).end();
     return;
   }
 
   if (req.method === "GET") {
-    const token = req.headers.authorization?.split('Bearer ')[1];
-    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+    const token = req.headers.authorization?.split("Bearer ")[1];
+    if (!token) return res.status(401).json({ error: "Unauthorized" });
 
     try {
       const decodedToken = await adminAuth.verifyIdToken(token);
       const uid = decodedToken.uid;
       const { groupId } = req.query;
 
-      if (!groupId || typeof groupId !== 'string') {
-        return res.status(400).json({ error: 'Invalid group ID' });
+      if (!groupId || typeof groupId !== "string") {
+        return res.status(400).json({ error: "Invalid group ID" });
       }
 
       // Get the group document
-      const groupDoc = await adminDB.collection('groups').doc(groupId).get();
+      const groupDoc = await adminDB.collection("groups").doc(groupId).get();
 
       if (!groupDoc.exists) {
-        return res.status(404).json({ error: 'Group not found' });
+        return res.status(404).json({ error: "Group not found" });
       }
 
       const groupData = groupDoc.data();
 
       // Check if user is a member of the group
-      const isMember = groupData?.members.some((member: any) => member.uid === uid);
+      const isMember = groupData?.members.some(
+        (member: any) => member.uid === uid
+      );
       if (!isMember) {
-        return res.status(403).json({ error: 'Not a member of this group' });
+        return res.status(403).json({ error: "Not a member of this group" });
       }
 
       // Get all users from database to ensure we have full names
       const usersSnapshot = await adminDB.collection("users").get();
       const usersMap = new Map();
-      
+
       // Create a map of uid to user data including fullName
-      usersSnapshot.forEach(doc => {
+      usersSnapshot.forEach((doc) => {
         const userData = doc.data();
         if (userData.uid) {
           usersMap.set(userData.uid, userData);
@@ -75,35 +77,41 @@ export default async function handler(
         imageUrl: groupData?.imageUrl || null,
         createdAt: groupData?.createdAt,
         createdBy: groupData?.createdBy,
-        members: await Promise.all(groupData?.members.map(async (member: any) => {
-          // Try to get user data from our database first
-          const dbUserData = usersMap.get(member.uid) || usersMap.get(member.email?.toLowerCase());
-          const username = member.email?.split('@')[0] || 'Unknown User';
-          
-          // Use database fullName if available, otherwise use stored displayName or username
-          const displayName = dbUserData?.fullName || member.displayName || username;
-          
-          return {
-            uid: member.uid,
-            email: member.email || '',
-            displayName: displayName,
-            photoURL: member.photoURL || null,
-            role: dbUserData?.role || null // Include role information
-          };
-        })) || []
+        members:
+          (await Promise.all(
+            groupData?.members.map(async (member: any) => {
+              // Try to get user data from our database first
+              const dbUserData =
+                usersMap.get(member.uid) ||
+                usersMap.get(member.email?.toLowerCase());
+              const username = member.email?.split("@")[0] || "Unknown User";
+
+              // Use database fullName if available, otherwise use stored displayName or username
+              const displayName =
+                dbUserData?.fullName || member.displayName || username;
+
+              return {
+                uid: member.uid,
+                email: member.email || "",
+                displayName: displayName,
+                photoURL: member.photoURL || null,
+                role: dbUserData?.role || null, // Include role information
+              };
+            })
+          )) || [],
       };
 
       return res.status(200).json({
         success: true,
-        group
+        group,
       });
     } catch (error) {
-      console.error('Error fetching group:', error);
-      return res.status(500).json({ error: 'Failed to fetch group' });
+      console.error("Error fetching group:", error);
+      return res.status(500).json({ error: "Failed to fetch group" });
     }
   } else if (req.method === "PUT") {
-    const token = req.headers.authorization?.split('Bearer ')[1];
-    if (!token) return res.status(401).json({ message: 'Unauthorized' });
+    const token = req.headers.authorization?.split("Bearer ")[1];
+    if (!token) return res.status(401).json({ message: "Unauthorized" });
 
     try {
       const decodedToken = await adminAuth.verifyIdToken(token);
@@ -111,81 +119,88 @@ export default async function handler(
       const { groupId } = req.query;
       const { name, description, imageUrl } = req.body;
 
-      if (!groupId || typeof groupId !== 'string') {
-        return res.status(400).json({ error: 'Invalid group ID' });
+      if (!groupId || typeof groupId !== "string") {
+        return res.status(400).json({ error: "Invalid group ID" });
       }
 
       // Get the group document
-      const groupDoc = await adminDB.collection('groups').doc(groupId).get();
+      const groupDoc = await adminDB.collection("groups").doc(groupId).get();
 
       if (!groupDoc.exists) {
-        return res.status(404).json({ error: 'Group not found' });
+        return res.status(404).json({ error: "Group not found" });
       }
 
       const groupData = groupDoc.data();
 
       // Check if user is the creator of the group
       if (groupData?.createdBy !== uid) {
-        return res.status(403).json({ error: 'Only the group creator can update the group' });
+        return res
+          .status(403)
+          .json({ error: "Only the group creator can update the group" });
       }
 
       // Update the group
-      await adminDB.collection('groups').doc(groupId).update({
-        name: name || groupData.name,
-        description: description || groupData.description,
-        imageUrl: imageUrl || groupData.imageUrl
-      });
+      await adminDB
+        .collection("groups")
+        .doc(groupId)
+        .update({
+          name: name || groupData.name,
+          description: description || groupData.description,
+          imageUrl: imageUrl || groupData.imageUrl,
+        });
 
       return res.status(200).json({
         success: true,
-        message: 'Group updated successfully'
+        message: "Group updated successfully",
       });
     } catch (error) {
-      console.error('Error updating group:', error);
-      return res.status(500).json({ error: 'Failed to update group' });
+      console.error("Error updating group:", error);
+      return res.status(500).json({ error: "Failed to update group" });
     }
   } else if (req.method === "DELETE") {
-    const token = req.headers.authorization?.split('Bearer ')[1];
-    if (!token) return res.status(401).json({ message: 'Unauthorized' });
+    const token = req.headers.authorization?.split("Bearer ")[1];
+    if (!token) return res.status(401).json({ message: "Unauthorized" });
 
     try {
       const decodedToken = await adminAuth.verifyIdToken(token);
       const uid = decodedToken.uid;
       const { groupId } = req.query;
 
-      if (!groupId || typeof groupId !== 'string') {
-        return res.status(400).json({ error: 'Invalid group ID' });
+      if (!groupId || typeof groupId !== "string") {
+        return res.status(400).json({ error: "Invalid group ID" });
       }
 
       // Get the group document
-      const groupDoc = await adminDB.collection('groups').doc(groupId).get();
+      const groupDoc = await adminDB.collection("groups").doc(groupId).get();
 
       if (!groupDoc.exists) {
-        return res.status(404).json({ error: 'Group not found' });
+        return res.status(404).json({ error: "Group not found" });
       }
 
       const groupData = groupDoc.data();
 
       // Check if user is the creator of the group
       if (groupData?.createdBy !== uid) {
-        return res.status(403).json({ error: 'Only the group creator can delete the group' });
+        return res
+          .status(403)
+          .json({ error: "Only the group creator can delete the group" });
       }
 
       // Delete group messages from Firebase Realtime Database
       await adminRealtimeDB.ref(`groupMessages/${groupId}`).remove();
 
       // Delete the group from Firestore
-      await adminDB.collection('groups').doc(groupId).delete();
+      await adminDB.collection("groups").doc(groupId).delete();
 
       return res.status(200).json({
         success: true,
-        message: 'Group and all messages deleted successfully'
+        message: "Group and all messages deleted successfully",
       });
     } catch (error) {
-      console.error('Error deleting group:', error);
-      return res.status(500).json({ error: 'Failed to delete group' });
+      console.error("Error deleting group:", error);
+      return res.status(500).json({ error: "Failed to delete group" });
     }
   } else {
     return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
-} 
+}

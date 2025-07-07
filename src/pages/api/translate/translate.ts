@@ -1,13 +1,14 @@
 import { NextApiRequest, NextApiResponse } from "next";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': 'http://localhost:5173',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Credentials': 'true',
+  "Access-Control-Allow-Origin": "https://educomm-84fd5.web.app",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Credentials": "true",
 };
 
-const LIBRETRANSLATE_URL = 'http://localhost:5000';
+// Temporarily disable LibreTranslate for production
+const LIBRETRANSLATE_URL = process.env.LIBRETRANSLATE_URL || null;
 
 export default async function handler(
   req: NextApiRequest,
@@ -19,7 +20,7 @@ export default async function handler(
   });
 
   // Handle preflight request
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
 
@@ -34,17 +35,24 @@ export default async function handler(
       return res.status(400).json({ error: "Missing required parameters" });
     }
 
+    // Check if LibreTranslate is available
+    if (!LIBRETRANSLATE_URL) {
+      return res.status(503).json({
+        error: "Translation service not available in production",
+      });
+    }
+
     // Call LibreTranslate translate endpoint
     const translateResponse = await fetch(`${LIBRETRANSLATE_URL}/translate`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         q,
-        source: source || 'auto',
+        source: source || "auto",
         target,
-        format: 'text',
+        format: "text",
       }),
     });
 
@@ -56,14 +64,15 @@ export default async function handler(
     const translationResult = await translateResponse.json();
     return res.status(200).json({
       translatedText: translationResult.translatedText,
-      from: source || 'auto',
-      to: target
+      from: source || "auto",
+      to: target,
     });
   } catch (error) {
-    console.error('Error in translation:', error);
-    return res.status(500).json({ 
-      error: error instanceof Error ? error.message : 'Failed to translate text',
-      details: error
+    console.error("Error in translation:", error);
+    return res.status(500).json({
+      error:
+        error instanceof Error ? error.message : "Failed to translate text",
+      details: error,
     });
   }
-} 
+}

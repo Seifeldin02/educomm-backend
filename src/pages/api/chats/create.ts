@@ -2,13 +2,16 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { adminDB, adminAuth } from "@/lib/firebaseAdmin";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': 'http://localhost:5173',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Credentials': 'true',
+  "Access-Control-Allow-Origin": "https://educomm-84fd5.web.app",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Credentials": "true",
 };
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   // Set CORS headers for all responses
   Object.entries(corsHeaders).forEach(([key, value]) => {
     res.setHeader(key, value);
@@ -36,7 +39,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (userId === currentUserId) {
-      return res.status(400).json({ error: "Cannot create chat with yourself" });
+      return res
+        .status(400)
+        .json({ error: "Cannot create chat with yourself" });
     }
 
     // Check if chat already exists between these users
@@ -57,10 +62,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     await chatRef.set({
       participants: {
         [currentUserId]: true,
-        [userId]: true
+        [userId]: true,
       },
       createdAt: new Date().toISOString(),
-      lastMessage: null
+      lastMessage: null,
     });
 
     return res.status(200).json({ chatId: chatRef.id });
@@ -68,4 +73,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.error("Error creating chat:", error);
     return res.status(500).json({ error: "Failed to create chat" });
   }
-} 
+}

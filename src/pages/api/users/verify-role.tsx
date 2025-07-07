@@ -7,7 +7,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  res.setHeader("Access-Control-Allow-Origin", "http://localhost:5173");
+  res.setHeader("Access-Control-Allow-Origin", "https://educomm-84fd5.web.app");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
@@ -30,29 +30,31 @@ export default async function handler(
 
     // If no role is required (public route), just return the user's role
     if (!requiredRole) {
-      return res.status(200).json({ message: "Role retrieved", role: userRole });
+      return res
+        .status(200)
+        .json({ message: "Role retrieved", role: userRole });
     }
 
     // Validate that user has a role
     if (!userRole) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: "User role not set",
         details: {
           userRole: "not set",
-          requiredRole
-        }
+          requiredRole,
+        },
       });
     }
 
     // Case-insensitive comparison of roles
     if (userRole.toLowerCase() !== requiredRole.toLowerCase()) {
-      return res.status(403).json({ 
+      return res.status(403).json({
         message: "Invalid role for this route",
         details: {
           userRole,
           requiredRole,
-          reason: "Role mismatch"
-        }
+          reason: "Role mismatch",
+        },
       });
     }
 

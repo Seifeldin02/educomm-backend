@@ -2,10 +2,10 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { adminDB, adminAuth } from "@/lib/firebaseAdmin";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': 'http://localhost:5173',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Credentials': 'true',
+  "Access-Control-Allow-Origin": "https://educomm-84fd5.web.app",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Credentials": "true",
 };
 
 interface UserSearchResult {
@@ -35,7 +35,7 @@ export default async function handler(
   });
 
   if (req.method !== "GET") {
-    res.setHeader('Allow', ['GET', 'OPTIONS']);
+    res.setHeader("Allow", ["GET", "OPTIONS"]);
     return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 
@@ -46,7 +46,7 @@ export default async function handler(
     await adminAuth.verifyIdToken(token);
     const { query } = req.query;
 
-    if (!query || typeof query !== 'string' || query.length < 2) {
+    if (!query || typeof query !== "string" || query.length < 2) {
       return res.status(200).json({ users: [] });
     }
 
@@ -54,37 +54,43 @@ export default async function handler(
 
     // Search by email
     const emailQuery = adminDB
-      .collection('users')
-      .where('email', '>=', searchTerm)
-      .where('email', '<=', searchTerm + '\uf8ff')
+      .collection("users")
+      .where("email", ">=", searchTerm)
+      .where("email", "<=", searchTerm + "\uf8ff")
       .limit(5);
 
     // Search by username
     const usernameQuery = adminDB
-      .collection('users')
-      .where('username', '>=', searchTerm)
-      .where('username', '<=', searchTerm + '\uf8ff')
+      .collection("users")
+      .where("username", ">=", searchTerm)
+      .where("username", "<=", searchTerm + "\uf8ff")
       .limit(5);
 
     // Search by fullName with original and capitalized casing
-    const capitalizedQuery = (query as string).charAt(0).toUpperCase() + (query as string).slice(1);
+    const capitalizedQuery =
+      (query as string).charAt(0).toUpperCase() + (query as string).slice(1);
     const fullNameQueryAsIs = adminDB
-      .collection('users')
-      .where('fullName', '>=', query as string)
-      .where('fullName', '<=', (query as string) + '\uf8ff')
+      .collection("users")
+      .where("fullName", ">=", query as string)
+      .where("fullName", "<=", (query as string) + "\uf8ff")
       .limit(5);
     const fullNameQueryCapitalized = adminDB
-      .collection('users')
-      .where('fullName', '>=', capitalizedQuery)
-      .where('fullName', '<=', capitalizedQuery + '\uf8ff')
+      .collection("users")
+      .where("fullName", ">=", capitalizedQuery)
+      .where("fullName", "<=", capitalizedQuery + "\uf8ff")
       .limit(5);
 
     // Run all queries in parallel
-    const [emailResults, usernameResults, fullNameResults, fullNameCapitalizedResults] = await Promise.all([
+    const [
+      emailResults,
+      usernameResults,
+      fullNameResults,
+      fullNameCapitalizedResults,
+    ] = await Promise.all([
       emailQuery.get(),
       usernameQuery.get(),
       fullNameQueryAsIs.get(),
-      fullNameQueryCapitalized.get()
+      fullNameQueryCapitalized.get(),
     ]);
 
     // Combine and deduplicate results
@@ -92,15 +98,16 @@ export default async function handler(
     const users: UserSearchResult[] = [];
 
     const processResults = (snapshot: FirebaseFirestore.QuerySnapshot) => {
-      snapshot.forEach(doc => {
+      snapshot.forEach((doc) => {
         const data = doc.data();
         if (!seenUids.has(doc.id)) {
           seenUids.add(doc.id);
           users.push({
             uid: doc.id,
             email: data.email,
-            displayName: data.fullName || data.displayName || data.email.split('@')[0],
-            username: data.username || '',
+            displayName:
+              data.fullName || data.displayName || data.email.split("@")[0],
+            username: data.username || "",
           });
         }
       });
@@ -119,15 +126,24 @@ export default async function handler(
           const authUserRecord = await adminAuth.getUser(userResult.uid);
           photoURL = authUserRecord.photoURL || null;
         } catch (authError) {
-          console.warn(`Failed to get auth record for user ${userResult.uid} during search, trying Firestore user doc:`, authError);
+          console.warn(
+            `Failed to get auth record for user ${userResult.uid} during search, trying Firestore user doc:`,
+            authError
+          );
           try {
-            const userDoc = await adminDB.collection('users').doc(userResult.uid).get();
+            const userDoc = await adminDB
+              .collection("users")
+              .doc(userResult.uid)
+              .get();
             if (userDoc.exists) {
               const firestoreData = userDoc.data();
               photoURL = firestoreData?.photoURL || null;
             }
           } catch (firestoreError) {
-            console.warn(`Failed to get Firestore user doc for ${userResult.uid} during search fallback:`, firestoreError);
+            console.warn(
+              `Failed to get Firestore user doc for ${userResult.uid} during search fallback:`,
+              firestoreError
+            );
           }
         }
         return {
@@ -147,17 +163,17 @@ export default async function handler(
         b.email.toLowerCase().startsWith(searchTerm) ||
         b.username.toLowerCase().startsWith(searchTerm) ||
         b.displayName.toLowerCase().startsWith(searchTerm);
-      
+
       if (aExact && !bExact) return -1;
       if (!aExact && bExact) return 1;
       return 0;
     });
 
     return res.status(200).json({
-      users: usersWithPhotoURL.slice(0, 10)
+      users: usersWithPhotoURL.slice(0, 10),
     });
   } catch (error) {
-    console.error('Error searching users:', error);
-    return res.status(500).json({ error: 'Failed to search users' });
+    console.error("Error searching users:", error);
+    return res.status(500).json({ error: "Failed to search users" });
   }
-} 
+}

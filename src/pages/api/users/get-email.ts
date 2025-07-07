@@ -6,9 +6,10 @@ export default async function handler(
   res: NextApiResponse
 ) {
   // Set CORS headers
-  res.setHeader("Access-Control-Allow-Origin", "http://localhost:5173"); // Allow requests from your frontend
+  res.setHeader("Access-Control-Allow-Origin", "https://educomm-84fd5.web.app"); // Allow requests from your frontend
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS"); // Allow GET and OPTIONS methods
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type"); // Allow Content-Type header
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization"); // Allow Content-Type and Authorization headers
+  res.setHeader("Access-Control-Allow-Credentials", "true"); // Allow credentials
 
   // Handle preflight requests
   if (req.method === "OPTIONS") {

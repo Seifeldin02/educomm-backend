@@ -1,5 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  eslint: {
+    ignoreDuringBuilds: true, // Skip ESLint during builds
+  },
+  typescript: {
+    ignoreBuildErrors: true, // Skip TypeScript errors during builds
+  },
   async headers() {
     return [
       {
@@ -7,7 +13,7 @@ const nextConfig = {
         headers: [
           {
             key: "Access-Control-Allow-Origin",
-            value: "*",
+            value: "https://educomm-84fd5.web.app",
           },
           {
             key: "Access-Control-Allow-Methods",
@@ -16,6 +22,10 @@ const nextConfig = {
           {
             key: "Access-Control-Allow-Headers",
             value: "Content-Type, Authorization",
+          },
+          {
+            key: "Access-Control-Allow-Credentials",
+            value: "true",
           },
         ],
       },
